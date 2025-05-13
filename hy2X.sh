@@ -116,15 +116,13 @@ cron_job="*/39 * * * * $WORKDIR/updateweb.sh # hysteria2_keepalive"
 crontab -l 2>/dev/null | grep -q 'hysteria2_keepalive' || \
   (crontab -l 2>/dev/null; echo "$cron_job") | crontab -
 
-# 生成订阅链接（写入文件，不直接输出）
+# 生成订阅链接
 SERVER_NAME=$(echo "$HOSTNAME" | cut -d '.' -f 1)
 TAG="$SERVER_NAME@$USERNAME-hy2"
 SUB_URL="hysteria2://$PASSWORD@$HOSTNAME:$udp_port/?sni=$MASQUERADE_DOMAIN&alpn=h3&insecure=1#$TAG"
-echo "$SUB_URL" > "$WORKDIR/subscribe.txt"
 
 green "=============================="
-green "HY2 节点部署成功 ✅"
-green "订阅链接保存在：$WORKDIR/subscribe.txt"
-yellow "访问地址：https://${USERNAME}.${CURRENT_DOMAIN}/web/subscribe.txt"
-purple "可用于二维码展示、客户端导入等"
+green "HY2 节点部署成功"
+green "订阅链接如下："
+yellow "$SUB_URL"
 green "=============================="
