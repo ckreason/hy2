@@ -20,8 +20,9 @@ else
   CURRENT_DOMAIN="serv00.net"
 fi
 
-# 连接域名候选生成（提取数字编号）
-num=$(echo "$HOSTNAME" | grep -oP '(?<=s)\d+')
+# 连接域名候选生成（提取 sN 中的 N）
+num=$(echo "$HOSTNAME" | grep -oP '^s\K\d+')
+num=${num:-0}
 BASE_DOMAIN=$(echo "$HOSTNAME" | cut -d '.' -f 2-)
 default_candidates=("s${num}.${BASE_DOMAIN}" "web${num}.${BASE_DOMAIN}" "cache${num}.${BASE_DOMAIN}")
 
@@ -130,7 +131,7 @@ cron_job="*/39 * * * * $WORKDIR/updateweb.sh # hysteria2_keepalive"
 crontab -l 2>/dev/null | grep -q 'hysteria2_keepalive' || \
   (crontab -l 2>/dev/null; echo "$cron_job") | crontab -
 
-# 构建链接
+# 构建订阅链接
 SERVER_NAME=$(echo "$HOSTNAME" | cut -d '.' -f 1)
 TAG="$SERVER_NAME@$USERNAME-hy2"
 SUB_URL="hysteria2://$PASSWORD@$CONN_DOMAIN:$udp_port/?sni=$MASQUERADE_DOMAIN&alpn=h3&insecure=1#$TAG"
@@ -152,4 +153,3 @@ green "=============================="
 green "Hy2 已部署成功 ✅"
 green "已通过 Telegram 发送节点信息"
 green "=============================="
-
