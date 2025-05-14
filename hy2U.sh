@@ -63,35 +63,25 @@ read -p "请输入伪装域名（回车默认 bing.com）: " input_domain
 MASQUERADE_DOMAIN=${input_domain:-bing.com}
 purple "使用伪装域名：$MASQUERADE_DOMAIN"
 
-# 用户选择主机名（子域名）
-choose_domain() {
-    local num=$(echo "$HOSTNAME" | sed -nE 's/[^0-9]*([0-9]+).*/\1/p')
-    local base="serv00.com"
-    local doms=("s${num}.${base}" "web${num}.${base}" "cache${num}.${base}")
+# 提取主机编号用于生成子域名
+num=$(echo "$HOSTNAME" | sed -nE 's/[^0-9]*([0-9]+).*/\1/p')
+base="serv00.com"
+doms=("s${num}.${base}" "web${num}.${base}" "cache${num}.${base}")
 
-    echo ""
-    yellow "请选择一个不被墙的主机名（子域名）用于部署（回车默认使用 ${doms[0]}）："
-    
-    # 手动打印菜单
-    echo "1) ${doms[0]}"
-    echo "2) ${doms[1]}"
-    echo "3) ${doms[2]}"
-    
-    # 用户输入
-    read -p "#? " reply
-    
-    # 默认或非法输入 → 使用第一个
-    case "$reply" in
-        1) echo "${doms[0]}" ;;
-        2) echo "${doms[1]}" ;;
-        3) echo "${doms[2]}" ;;
-        *) echo "${doms[0]}" ;;
-    esac
-}
+# 子域名选择提示
+echo ""
+yellow "请选择一个不被墙的主机名（子域名）用于部署（回车默认使用 ${doms[0]}）："
+for i in "${!doms[@]}"; do
+  echo "$((i+1)). ${doms[$i]}"
+done
 
+read -p "#? " reply
+if [[ -z "$reply" || ! "$reply" =~ ^[1-3]$ ]]; then
+  SELECTED_DOMAIN="${doms[0]}"
+else
+  SELECTED_DOMAIN="${doms[$((reply-1))]}"
+fi
 
-
-SELECTED_DOMAIN=$(choose_domain)
 purple "最终部署主机名(子域名)：$SELECTED_DOMAIN"
 
 # 下载 Hy2 程序
