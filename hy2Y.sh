@@ -144,8 +144,8 @@ green "已通过 Telegram 发送节点信息"
 green "若需一键清理还原，请按快捷键 S "
 green "=============================="
 
-read -p "请输入快捷键（S 跳转清理，其他键跳过）: " shortcut
-if [[ "$shortcut" == "S" || "$shortcut" == "s" ]]; then
+# 判断是否需要执行清理
+if [ -f "$HOME/cleanup_flag" ]; then
   read -p "⚠️ 注意！！！清理所有进程并清空所有安装内容，将退出 SSH 连接，确定继续清理吗？【y/n】: " confirm
   if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
     red "正在终止当前用户的所有进程..."
@@ -155,10 +155,13 @@ if [[ "$shortcut" == "S" || "$shortcut" == "s" ]]; then
     rm -rf /home/$USER/domains/$USER.${CURRENT_DOMAIN}/public_html/*
 
     green "✅ 一键清理完成，网站内容和进程已还原"
+    rm -f "$HOME/cleanup_flag" # 清理标识文件
     exit 0
   else
     yellow "❗ 已取消清理操作，保留原配置。"
   fi
 else
-  green "跳过一键清理，保留当前部署状态。"
+  # 在此处添加触发清理的标识文件
+  touch "$HOME/cleanup_flag"
+  green "清理标识已设置，重新连接 SSH 后可进行清理操作"
 fi
