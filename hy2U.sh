@@ -17,34 +17,36 @@ if [[ "$HOSTNAME" =~ ct8 ]]; then
 elif [[ "$HOSTNAME" =~ hostuno ]]; then
   CURRENT_DOMAIN="useruno.com"
 else
-  CURRENT_DOMAIN="serv00.com"
+  CURRENT_DOMAIN="serv00.net"
 fi
 
-# 设置工作目录
 WORKDIR="$HOME/domains/${USERNAME}.${CURRENT_DOMAIN}/web"
 mkdir -p "$WORKDIR"
 cd "$WORKDIR" || exit 1
 
-# 基础验证脚本
+# 创建基础运行验证脚本
 cat << EOF > "$HOME/1.sh"
 #!/bin/bash
 echo "ok"
 EOF
 chmod +x "$HOME/1.sh"
+
 if ! "$HOME/1.sh" > /dev/null; then
   devil binexec on
   echo "首次运行，请退出 SSH 后重新登录再执行此脚本"
   exit 0
 fi
 
-# 清理旧内容
+# 清理旧文件
 rm -rf "$WORKDIR"/*
 sleep 1
+
+# 清除所有 UDP 端口
 devil port list | awk 'NR>1 && $2 == "udp" { print $1 }' | while read -r port; do
   devil port del udp "$port"
 done
 
-# 添加随机 UDP 端口
+# 添加中段随机 UDP 端口
 while true; do
   udp_port=$(shuf -i 30000-40000 -n 1)
   result=$(devil port add udp "$udp_port" 2>&1)
@@ -52,64 +54,100 @@ while true; do
 done
 purple "已添加 UDP 端口：$udp_port"
 
-# UUID & 伪装域名
+
+# 多域名检测逻辑，优选可用子域名
+SERVER_NAME=$(hostname | cut -d '.' -f 1)
+SERVER_ID=$(echo "$SERVER_NAME" | sed 's/[^0-9]//g')
+BASE_DOMAIN="serv00.com"
+
+DOMAINS=(
+  "${SERVER_NAME}.${BASE_DOMAIN}"
+  "web${SERVER_ID}.${BASE_DOMAIN}"
+  "cache${SERVER_ID}.${BASE_DOMAIN}"
+)
+
+echo -e "\n正在检测以下子域名是否可用："
+for d in "${DOMAINS[@]}"; do echo " - $d"; done
+
+echo -e "\n检测中，请稍等..."
+> ip.txt
+for domain in "${DOMAINS[@]}"; do
+  ip=$(dig +short "$domain" @8.8.8.8 | head -n 1)
+  if [[ -n "$ip" ]]; then
+    curl -m 3 -s "https://$domain" > /dev/null
+    if [[ $? -eq 0 ]]; then
+      echo "$ip:$domain:可用" >> ip.txt
+    else
+      echo "$ip:$domain:被墙" >> ip.txt
+    fi
+  else
+    echo "null:$domain:无解析" >> ip.txt
+  fi
+done
+
+echo -e "\n检测结果如下："
+cat ip.txt
+
+read -p "请输入你要使用的域名序号（默认自动选第一个可用）: " user_choice
+if [[ -z "$user_choice" ]]; then
+  SELECTED_LINE=$(grep "可用" ip.txt | head -n 1)
+else
+  SELECTED_LINE=$(sed -n "${user_choice}p" ip.txt)
+fi
+
+SELECTED_IP=$(echo "$SELECTED_LINE" | cut -d ':' -f 1)
+SELECTED_DOMAIN=$(echo "$SELECTED_LINE" | cut -d ':' -f 2)
+
+if [[ -z "$SELECTED_IP" || -z "$SELECTED_DOMAIN" ]]; then
+  red "未找到可用 IP，请检查域名解析或网络连通性。"
+  exit 1
+fi
+
+green "已选择：$SELECTED_DOMAIN （$SELECTED_IP）"
+# UUID 输入或自动生成
 read -p "请输入 UUID（回车自动生成）: " input_uuid
 UUID=${input_uuid:-$(uuidgen)}
 PASSWORD="$UUID"
 
+# 用户输入伪装域名
 read -p "请输入伪装域名（回车默认 bing.com）: " input_domain
 MASQUERADE_DOMAIN=${input_domain:-bing.com}
 purple "使用伪装域名：$MASQUERADE_DOMAIN"
 
-# 子域名选择交互
-num=$(echo "$HOSTNAME" | sed -nE 's/[^0-9]*([0-9]+).*/\1/p')
-base="serv00.com"
-doms=("s${num}.${base}" "web${num}.${base}" "cache${num}.${base}")
-
-echo ""
-yellow "请选择一个不被墙的主机名（子域名）用于部署（回车默认使用 ${doms[0]}）："
-for i in "${!doms[@]}"; do
-  echo "$((i+1)). ${doms[$i]}"
-done
-
-read -p "#? " reply
-if [[ -z "$reply" || ! "$reply" =~ ^[1-3]$ ]]; then
-  SELECTED_DOMAIN="${doms[0]}"
-else
-  SELECTED_DOMAIN="${doms[$((reply-1))]}"
-fi
-purple "你选择了主机名(子域名)：$SELECTED_DOMAIN"
-
-# 下载 hy2
+# 下载 hy2 程序
 curl -Lo hysteria2 https://download.hysteria.network/app/latest/hysteria-freebsd-amd64
 chmod +x hysteria2
 
-# TLS 自签
+# 生成 TLS 自签证书
 openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) \
   -keyout "$WORKDIR/web.key" \
   -out "$WORKDIR/web.crt" \
   -subj "/CN=${MASQUERADE_DOMAIN}" -days 36500
 
-# Hy2 配置文件
+# 写入配置文件
 cat << EOF > "$WORKDIR/web.yaml"
 listen: :$udp_port
+
 tls:
   cert: $WORKDIR/web.crt
   key: $WORKDIR/web.key
+
 auth:
   type: password
   password: $PASSWORD
+
 masquerade:
   type: proxy
   proxy:
     url: https://${MASQUERADE_DOMAIN}
     rewriteHost: true
+
 transport:
   udp:
     hopInterval: 30s
 EOF
 
-# 保活脚本
+# 写入保活脚本
 cat << EOF > "$WORKDIR/updateweb.sh"
 #!/bin/bash
 sleep \$((RANDOM % 30 + 10))
@@ -123,31 +161,34 @@ chmod +x "$WORKDIR/updateweb.sh"
 # 启动服务
 "$WORKDIR/updateweb.sh"
 
-# 定时任务（保活）
+# 添加 crontab 保活任务（唯一标识）
 cron_job="*/39 * * * * $WORKDIR/updateweb.sh # hysteria2_keepalive"
 crontab -l 2>/dev/null | grep -q 'hysteria2_keepalive' || \
   (crontab -l 2>/dev/null; echo "$cron_job") | crontab -
 
-# 构建订阅链接
-TAG="$SELECTED_DOMAIN@$USERNAME-hy2"
+# 构建链接
+SERVER_NAME=$(echo "$SELECTED_DOMAIN" | cut -d '.' -f 1)
+TAG="$SERVER_NAME@$USERNAME-hy2"
 SUB_URL="hysteria2://$PASSWORD@$SELECTED_DOMAIN:$udp_port/?sni=$MASQUERADE_DOMAIN&alpn=h3&insecure=1#$TAG"
 
-# Telegram 推送
+# 用户输入 Telegram 推送参数
 read -p "请输入你的 Telegram Bot Token: " TELEGRAM_BOT_TOKEN
 read -p "请输入你的 Telegram Chat ID: " TELEGRAM_CHAT_ID
 
+# Base64 编码链接
 ENCODED_LINK=$(echo -n "$SUB_URL" | base64)
-MSG="HY2 部署成功 ✅
+
+# 拼接消息文本（带说明）
+MSG="HY2 节点部署成功 ✅
 
 $ENCODED_LINK"
 
-# 发送到 Telegram
+# 静默发送到 Telegram（无任何返回输出）
 curl -s -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
   -d chat_id="${TELEGRAM_CHAT_ID}" \
   -d text="$MSG"
 
-# 完成提示
 green "=============================="
-green "Hy2 已部署成功 ✅"
-green "链接已通过 Telegram 推送"
+green "Hy2 已部署成功 "
+green "已通过 Telegram 发送信息"
 green "=============================="
