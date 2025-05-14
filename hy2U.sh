@@ -71,17 +71,24 @@ choose_domain() {
 
     echo ""
     yellow "请选择一个不被墙的主机名（子域名）用于部署（回车默认使用 ${doms[0]}）："
-    for i in "${!doms[@]}"; do
-        echo "$((i+1)). ${doms[$i]}"
-    done
-
+    
+    # 手动打印菜单
+    echo "1) ${doms[0]}"
+    echo "2) ${doms[1]}"
+    echo "3) ${doms[2]}"
+    
+    # 用户输入
     read -p "#? " reply
-    if [[ -z "$reply" || ! "$reply" =~ ^[1-3]$ ]]; then
-        echo "${doms[0]}"
-    else
-        echo "${doms[$((reply-1))]}"
-    fi
+    
+    # 默认或非法输入 → 使用第一个
+    case "$reply" in
+        1) echo "${doms[0]}" ;;
+        2) echo "${doms[1]}" ;;
+        3) echo "${doms[2]}" ;;
+        *) echo "${doms[0]}" ;;
+    esac
 }
+
 
 
 SELECTED_DOMAIN=$(choose_domain)
