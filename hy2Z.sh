@@ -150,7 +150,7 @@ curl -s -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/
   -d text="$MSG"
 
 green "=============================="
-green "Hysteria2 已部署成功 "
+green "Hy2 已部署成功 "
 green "已通过 Telegram 发送节点信息"
 green "=============================="
 
