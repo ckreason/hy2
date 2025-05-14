@@ -141,27 +141,4 @@ curl -s -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/
 green "=============================="
 green "Hysteria2 已部署成功 "
 green "已通过 Telegram 发送节点信息"
-green "若需一键清理还原，请按快捷键 S "
 green "=============================="
-
-# 判断是否需要执行清理
-if [ -f "$HOME/cleanup_flag" ]; then
-  # 清理提示和确认操作
-  read -p "⚠️ 注意！！！清理所有进程并清空所有安装内容，将退出 SSH 连接，确定继续清理吗？【y/n】: " confirm
-  if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-    red "正在终止当前用户的所有进程..."
-    pkill -u $(whoami)
-
-    red "正在删除网站文件..."
-    rm -rf /home/$USER/domains/$USER.${CURRENT_DOMAIN}/public_html/*
-
-    green "✅ 一键清理完成，网站内容和进程已还原"
-    rm -f "$HOME/cleanup_flag" # 清理标识文件
-    exit 0
-  else
-    yellow "❗ 已取消清理操作，保留原配置。"
-  fi
-else
-  # 在此处添加触发清理的标识文件
-  touch "$HOME/cleanup_flag"
-fi
