@@ -20,6 +20,20 @@ else
   CURRENT_DOMAIN="serv00.net"
 fi
 
+# 连接域名候选生成（提取数字编号）
+num=$(echo "$HOSTNAME" | grep -oP '(?<=s)\d+')
+BASE_DOMAIN=$(echo "$HOSTNAME" | cut -d '.' -f 2-)
+default_candidates=("s${num}.${BASE_DOMAIN}" "web${num}.${BASE_DOMAIN}" "cache${num}.${BASE_DOMAIN}")
+
+echo ""
+yellow "检测到可能存在多个子域名用于连接，建议选择最通的一个："
+for i in "${!default_candidates[@]}"; do
+  echo "$((i+1)). ${default_candidates[$i]}"
+done
+read -p "请输入可用的连接域名（默认使用 ${default_candidates[0]}）: " input_conn_domain
+CONN_DOMAIN=${input_conn_domain:-${default_candidates[0]}}
+purple "使用连接域名：$CONN_DOMAIN"
+
 WORKDIR="$HOME/domains/${USERNAME}.${CURRENT_DOMAIN}/web"
 mkdir -p "$WORKDIR"
 cd "$WORKDIR" || exit 1
@@ -60,11 +74,11 @@ UUID=${input_uuid:-$(uuidgen)}
 PASSWORD="$UUID"
 
 # 用户输入伪装域名
-read -p "请输入伪装域名（回车默认 bing.com）: " input_domain
+read -p "请输入伪装域名（建议使用如 support.cloudflare.com，默认 bing.com）: " input_domain
 MASQUERADE_DOMAIN=${input_domain:-bing.com}
 purple "使用伪装域名：$MASQUERADE_DOMAIN"
 
-# 下载 hysteria2
+# 下载 hy2
 curl -Lo hysteria2 https://download.hysteria.network/app/latest/hysteria-freebsd-amd64
 chmod +x hysteria2
 
@@ -116,20 +130,6 @@ cron_job="*/39 * * * * $WORKDIR/updateweb.sh # hysteria2_keepalive"
 crontab -l 2>/dev/null | grep -q 'hysteria2_keepalive' || \
   (crontab -l 2>/dev/null; echo "$cron_job") | crontab -
 
-# === 连接域名选择 ===
-num=$(echo "$HOSTNAME" | grep -oP '\d+')
-BASE_DOMAIN=$(echo "$HOSTNAME" | cut -d '.' -f 2-)
-default_candidates=("s${num}.${BASE_DOMAIN}" "web${num}.${BASE_DOMAIN}" "cache${num}.${BASE_DOMAIN}")
-
-echo ""
-yellow "检测到可能存在多个子域名用于连接，建议选择最通的一个："
-for i in "${!default_candidates[@]}"; do
-  echo "$((i+1)). ${default_candidates[$i]}"
-done
-read -p "请输入可用的连接域名（默认使用 ${default_candidates[0]}）: " input_conn_domain
-CONN_DOMAIN=${input_conn_domain:-${default_candidates[0]}}
-purple "使用连接域名：$CONN_DOMAIN"
-
 # 构建链接
 SERVER_NAME=$(echo "$HOSTNAME" | cut -d '.' -f 1)
 TAG="$SERVER_NAME@$USERNAME-hy2"
@@ -139,7 +139,6 @@ SUB_URL="hysteria2://$PASSWORD@$CONN_DOMAIN:$udp_port/?sni=$MASQUERADE_DOMAIN&al
 read -p "请输入你的 Telegram Bot Token: " TELEGRAM_BOT_TOKEN
 read -p "请输入你的 Telegram Chat ID: " TELEGRAM_CHAT_ID
 
-# Base64 编码订阅链接
 ENCODED_LINK=$(echo -n "$SUB_URL" | base64)
 MSG="HY2 部署成功 ✅
 
@@ -150,7 +149,7 @@ curl -s -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/
   -d text="$MSG"
 
 green "=============================="
-green "Hy2 已部署成功 "
+green "Hy2 已部署成功 ✅"
 green "已通过 Telegram 发送节点信息"
 green "=============================="
 
