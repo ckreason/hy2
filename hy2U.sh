@@ -6,7 +6,6 @@ function green()  { echo -e "\033[1;32m$1\033[0m"; }
 function yellow() { echo -e "\033[1;33m$1\033[0m"; }
 function purple() { echo -e "\033[1;35m$1\033[0m"; }
 
-# 环境变量
 export LC_ALL=C
 HOSTNAME=$(hostname)
 USERNAME=$(whoami | tr '[:upper:]' '[:lower:]')
@@ -24,29 +23,28 @@ WORKDIR="$HOME/domains/${USERNAME}.${CURRENT_DOMAIN}/web"
 mkdir -p "$WORKDIR"
 cd "$WORKDIR" || exit 1
 
-# 创建基础运行验证脚本
+# 验证 devil 执行权限
 cat << EOF > "$HOME/1.sh"
 #!/bin/bash
 echo "ok"
 EOF
 chmod +x "$HOME/1.sh"
-
 if ! "$HOME/1.sh" > /dev/null; then
   devil binexec on
   echo "首次运行，请退出 SSH 后重新登录再执行此脚本"
   exit 0
 fi
 
-# 清理旧文件
+# 清理旧内容
 rm -rf "$WORKDIR"/*
 sleep 1
 
-# 清除所有 UDP 端口
+# 清除旧 UDP 端口
 devil port list | awk 'NR>1 && $2 == "udp" { print $1 }' | while read -r port; do
   devil port del udp "$port"
 done
 
-# 添加中段随机 UDP 端口
+# 添加新 UDP 端口
 while true; do
   udp_port=$(shuf -i 30000-40000 -n 1)
   result=$(devil port add udp "$udp_port" 2>&1)
@@ -54,7 +52,7 @@ while true; do
 done
 purple "已添加 UDP 端口：$udp_port"
 
-### 检测子域名连通性 ###
+# 多域名检测
 SERVER_NAME=$(hostname | cut -d '.' -f 1)
 SERVER_ID=$(echo "$SERVER_NAME" | sed 's/[^0-9]//g')
 BASE_DOMAIN="serv00.com"
@@ -65,10 +63,10 @@ DOMAINS=(
   "cache${SERVER_ID}.${BASE_DOMAIN}"
 )
 
-echo -e "\n正在检测以下子域名是否可用："
+echo -e "\\n正在检测以下子域名是否可用："
 for d in "${DOMAINS[@]}"; do echo " - $d"; done
 
-echo -e "\n检测中，请稍等..."
+echo -e "\\n检测中，请稍等..."
 > ip.txt
 for domain in "${DOMAINS[@]}"; do
   response=$(curl -sL --connect-timeout 5 --max-time 7 "https://ss.fkj.pp.ua/api/getip?host=$domain")
@@ -81,7 +79,7 @@ for domain in "${DOMAINS[@]}"; do
   fi
 done
 
-echo -e "\n检测结果如下："
+echo -e "\\n检测结果如下："
 cat ip.txt
 
 read -p "请输入你要使用的域名序号（默认自动选第一个可用）: " user_choice
@@ -95,52 +93,33 @@ SELECTED_IP=$(echo "$SELECTED_LINE" | cut -d ':' -f 1)
 SELECTED_DOMAIN=$(echo "$SELECTED_LINE" | cut -d ':' -f 2)
 
 if [[ -z "$SELECTED_IP" || -z "$SELECTED_DOMAIN" ]]; then
-  red "未找到可用子域名，请检查网络或域名状态。"
+  red "未找到可用 IP，请检查网络或域名状态。"
   exit 1
 fi
 green "已选择：$SELECTED_DOMAIN （$SELECTED_IP）"
-
-### 检测可用绑定 IP ###
-echo -e "\n检测支持的 vhost IP 中，请稍等..."
-VHOST_IPS=($(devil vhost list | awk '/^[0-9]+/ {print $1}'))
-HOST_IP=""
-for vip in "${VHOST_IPS[@]}"; do
-  vres=$(curl -s --max-time 2 "https://status.eooce.com/api/${vip}")
-  if [[ $(echo "$vres" | grep -o "Available") == "Available" ]]; then
-    HOST_IP=$vip
-    break
-  fi
-done
-
-if [[ -z "$HOST_IP" ]]; then
-  red "未能获取可用的绑定 IP，请检查 vhost 配置。"
-  exit 1
-fi
-green "最终绑定 IP 为：$HOST_IP"
-
-# UUID 输入
+# UUID 输入或自动生成
 read -p "请输入 UUID（回车自动生成）: " input_uuid
 UUID=${input_uuid:-$(uuidgen)}
 PASSWORD="$UUID"
 
-# 伪装域名
+# 用户输入伪装域名
 read -p "请输入伪装域名（回车默认 bing.com）: " input_domain
 MASQUERADE_DOMAIN=${input_domain:-bing.com}
 purple "使用伪装域名：$MASQUERADE_DOMAIN"
 
-# 下载 hy2
+# 下载 hy2 程序
 curl -Lo hysteria2 https://download.hysteria.network/app/latest/hysteria-freebsd-amd64
 chmod +x hysteria2
 
-# TLS 证书
+# 生成 TLS 自签证书
 openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) \
   -keyout "$WORKDIR/web.key" \
   -out "$WORKDIR/web.crt" \
   -subj "/CN=${MASQUERADE_DOMAIN}" -days 36500
 
-# 写入配置文件
+# 写入 hy2 配置文件（关键点：绑定 SELECTED_IP）
 cat << EOF > "$WORKDIR/web.yaml"
-listen: $HOST_IP:$udp_port
+listen: $SELECTED_IP:$udp_port
 
 tls:
   cert: $WORKDIR/web.crt
@@ -172,32 +151,38 @@ fi
 EOF
 chmod +x "$WORKDIR/updateweb.sh"
 
+# 启动 hy2 服务
 "$WORKDIR/updateweb.sh"
 
-# 添加定时保活任务
+# 添加定时任务保活
 cron_job="*/39 * * * * $WORKDIR/updateweb.sh # hysteria2_keepalive"
 crontab -l 2>/dev/null | grep -q 'hysteria2_keepalive' || \
   (crontab -l 2>/dev/null; echo "$cron_job") | crontab -
 
-# 构建分享链接
+# 构建节点分享链接
 SERVER_NAME=$(echo "$SELECTED_DOMAIN" | cut -d '.' -f 1)
 TAG="$SERVER_NAME@$USERNAME-hy2"
 SUB_URL="hysteria2://$PASSWORD@$SELECTED_DOMAIN:$udp_port/?sni=$MASQUERADE_DOMAIN&alpn=h3&insecure=1#$TAG"
 
-# Telegram 推送
+# 用户输入 Telegram 推送参数
 read -p "请输入你的 Telegram Bot Token: " TELEGRAM_BOT_TOKEN
 read -p "请输入你的 Telegram Chat ID: " TELEGRAM_CHAT_ID
 
+# Base64 编码
 ENCODED_LINK=$(echo -n "$SUB_URL" | base64)
-MSG="HY2 节点部署成功 ✅
+
+# 拼接消息文本
+MSG="HY2 部署成功 ✅
 
 $ENCODED_LINK"
 
+# 静默推送
 curl -s -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
   -d chat_id="${TELEGRAM_CHAT_ID}" \
   -d text="$MSG"
 
+# 完成提示
 green "=============================="
-green "Hysteria2 已部署成功"
+green "Hy2 已部署成功"
 green "已通过 Telegram 发送信息"
 green "=============================="
