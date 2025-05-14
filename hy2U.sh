@@ -65,7 +65,7 @@ purple "使用伪装域名：$MASQUERADE_DOMAIN"
 
 # 用户选择主机名（子域名）
 choose_domain() {
-    local num=$(echo "$HOSTNAME" | grep -oP '\d+')
+    local num=$(echo "$HOSTNAME" | sed -nE 's/[^0-9]*([0-9]+).*/\1/p')
     local base="serv00.com"
     local doms=("s${num}.${base}" "web${num}.${base}" "cache${num}.${base}")
 
