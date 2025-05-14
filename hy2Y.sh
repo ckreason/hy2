@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 颜色输出函数
+# 字体颜色输出函数
 function red()    { echo -e "\033[1;91m$1\033[0m"; }
 function green()  { echo -e "\033[1;32m$1\033[0m"; }
 function yellow() { echo -e "\033[1;33m$1\033[0m"; }
@@ -24,7 +24,7 @@ WORKDIR="$HOME/domains/${USERNAME}.${CURRENT_DOMAIN}/web"
 mkdir -p "$WORKDIR"
 cd "$WORKDIR" || exit 1
 
-# 权限检测脚本
+# 创建基础运行验证脚本
 cat << EOF > "$HOME/1.sh"
 #!/bin/bash
 echo "ok"
