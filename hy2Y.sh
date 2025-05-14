@@ -146,6 +146,7 @@ green "=============================="
 
 # 判断是否需要执行清理
 if [ -f "$HOME/cleanup_flag" ]; then
+  # 清理提示和确认操作
   read -p "⚠️ 注意！！！清理所有进程并清空所有安装内容，将退出 SSH 连接，确定继续清理吗？【y/n】: " confirm
   if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
     red "正在终止当前用户的所有进程..."
@@ -163,5 +164,4 @@ if [ -f "$HOME/cleanup_flag" ]; then
 else
   # 在此处添加触发清理的标识文件
   touch "$HOME/cleanup_flag"
-  green "清理标识已设置，重新连接 SSH 后可进行清理操作"
 fi
