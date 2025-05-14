@@ -63,7 +63,16 @@ choose_domain() {
 
     echo "请选择一个不被墙的主机名(子域名)用于部署："
     select chosen in "${doms[@]}"; do
-        [[ -n "$chosen" ]] && echo "$chosen" && break || echo "无效选择，请重新选择"
+        if [[ -z "$REPLY" ]]; then
+            chosen=${doms[0]}
+            echo "$chosen"
+            break
+        elif [[ -n "$chosen" ]]; then
+            echo "$chosen"
+            break
+        else
+            echo "无效选择，请重新选择"
+        fi
     done
 }
 
