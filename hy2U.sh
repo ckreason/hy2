@@ -15,7 +15,7 @@ if [[ "$HOSTNAME" =~ ct8 ]]; then
 elif [[ "$HOSTNAME" =~ hostuno ]]; then
   CURRENT_DOMAIN="useruno.com"
 else
-  CURRENT_DOMAIN="serv00.net"
+  CURRENT_DOMAIN="serv00.com"
 fi
 
 WORKDIR="$HOME/domains/${USERNAME}.${CURRENT_DOMAIN}/web"
@@ -55,41 +55,20 @@ read -p "请输入伪装域名（回车默认 bing.com）: " input_domain
 MASQUERADE_DOMAIN=${input_domain:-bing.com}
 purple "使用伪装域名：$MASQUERADE_DOMAIN"
 
-# ---------- 新增：选择可用子域名 ----------
-check_domain_blocked() {
-    ping -c 1 -W 1 "$1" &> /dev/null
-    return $?
-}
-
+# ---------- 简化：用户手动选择可用子域名 ----------
 choose_domain() {
     local index=$(echo "$HOSTNAME" | grep -o -E '[0-9]+')
     local base="serv00.com"
     local doms=("S${index}.${base}" "web${index}.${base}" "cache${index}.${base}")
-    local available=()
 
-    echo "检测子域名可用性："
-    for dom in "${doms[@]}"; do
-        if check_domain_blocked "$dom"; then
-            echo "$dom 可用"
-            available+=("$dom")
-        else
-            echo "$dom 被墙"
-        fi
-    done
-
-    if [[ ${#available[@]} -eq 0 ]]; then
-        red "❌ 所有子域名都被墙，退出部署"
-        exit 1
-    fi
-
-    echo "请选择一个可用域名用于部署："
-    select chosen in "${available[@]}"; do
-        [[ -n "$chosen" ]] && echo "$chosen" && break || echo "无效选择"
+    echo "请选择一个不被墙的主机名(子域名)用于部署："
+    select chosen in "${doms[@]}"; do
+        [[ -n "$chosen" ]] && echo "$chosen" && break || echo "无效选择，请重新选择"
     done
 }
 
 SELECTED_DOMAIN=$(choose_domain)
-purple "最终部署域名：$SELECTED_DOMAIN"
+purple "最终部署主机名(子域名)：$SELECTED_DOMAIN"
 
 curl -Lo hysteria2 https://download.hysteria.network/app/latest/hysteria-freebsd-amd64
 chmod +x hysteria2
@@ -148,6 +127,6 @@ curl -s -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/
   -d text="$MSG"
 
 green "=============================="
-green "Hysteria2 已部署成功 "
+green "Hy2 已部署成功 "
 green "已通过 Telegram 发送信息"
 green "=============================="
