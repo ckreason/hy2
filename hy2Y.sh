@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 颜色输出函数
+# 字体颜色输出函数
 function red()    { echo -e "\033[1;91m$1\033[0m"; }
 function green()  { echo -e "\033[1;32m$1\033[0m"; }
 function yellow() { echo -e "\033[1;33m$1\033[0m"; }
@@ -8,13 +8,8 @@ function purple() { echo -e "\033[1;35m$1\033[0m"; }
 
 # 环境变量
 export LC_ALL=C
-HOSTNAME=$(hostname -f)
+HOSTNAME=$(hostname)
 USERNAME=$(whoami | tr '[:upper:]' '[:lower:]')
-
-# 提取服务器编号（如 s6 → 6）
-prefix=$(echo "$HOSTNAME" | cut -d '.' -f1)        # s6
-num=$(echo "$prefix" | grep -oP '\d+')             # 提取数字 6
-num=${num:-0}                                      # 若为空默认为0
 
 # 自动识别站点域名
 if [[ "$HOSTNAME" =~ ct8 ]]; then
@@ -25,25 +20,11 @@ else
   CURRENT_DOMAIN="serv00.net"
 fi
 
-# 构造连接域名候选项
-BASE_DOMAIN=$(echo "$HOSTNAME" | cut -d '.' -f 2-)
-default_candidates=("s${num}.${BASE_DOMAIN}" "web${num}.${BASE_DOMAIN}" "cache${num}.${BASE_DOMAIN}")
-
-echo ""
-yellow "检测到可能存在多个子域名用于连接，建议选择最通的一个："
-for i in "${!default_candidates[@]}"; do
-  echo "$((i+1)). ${default_candidates[$i]}"
-done
-read -p "请输入可用的连接域名（默认使用 ${default_candidates[0]}）: " input_conn_domain
-CONN_DOMAIN=${input_conn_domain:-${default_candidates[0]}}
-purple "使用连接域名：$CONN_DOMAIN"
-
-# 工作目录
 WORKDIR="$HOME/domains/${USERNAME}.${CURRENT_DOMAIN}/web"
 mkdir -p "$WORKDIR"
 cd "$WORKDIR" || exit 1
 
-# 权限检测脚本
+# 创建基础运行验证脚本
 cat << EOF > "$HOME/1.sh"
 #!/bin/bash
 echo "ok"
@@ -79,11 +60,11 @@ UUID=${input_uuid:-$(uuidgen)}
 PASSWORD="$UUID"
 
 # 用户输入伪装域名
-read -p "请输入伪装域名（建议使用如 support.cloudflare.com，默认 bing.com）: " input_domain
+read -p "请输入伪装域名（回车默认 bing.com）: " input_domain
 MASQUERADE_DOMAIN=${input_domain:-bing.com}
 purple "使用伪装域名：$MASQUERADE_DOMAIN"
 
-# 下载 hy2
+# 下载 hy2 程序
 curl -Lo hysteria2 https://download.hysteria.network/app/latest/hysteria-freebsd-amd64
 chmod +x hysteria2
 
@@ -116,7 +97,7 @@ transport:
     hopInterval: 30s
 EOF
 
-# 保活脚本
+# 写入保活脚本
 cat << EOF > "$WORKDIR/updateweb.sh"
 #!/bin/bash
 sleep \$((RANDOM % 30 + 10))
@@ -130,7 +111,7 @@ chmod +x "$WORKDIR/updateweb.sh"
 # 启动服务
 "$WORKDIR/updateweb.sh"
 
-# 添加 crontab 保活
+# 添加 crontab 保活任务（唯一标识）
 cron_job="*/39 * * * * $WORKDIR/updateweb.sh # hysteria2_keepalive"
 crontab -l 2>/dev/null | grep -q 'hysteria2_keepalive' || \
   (crontab -l 2>/dev/null; echo "$cron_job") | crontab -
@@ -138,22 +119,26 @@ crontab -l 2>/dev/null | grep -q 'hysteria2_keepalive' || \
 # 构建订阅链接
 SERVER_NAME=$(echo "$HOSTNAME" | cut -d '.' -f 1)
 TAG="$SERVER_NAME@$USERNAME-hy2"
-SUB_URL="hysteria2://$PASSWORD@$CONN_DOMAIN:$udp_port/?sni=$MASQUERADE_DOMAIN&alpn=h3&insecure=1#$TAG"
+SUB_URL="hysteria2://$PASSWORD@$HOSTNAME:$udp_port/?sni=$MASQUERADE_DOMAIN&alpn=h3&insecure=1#$TAG"
 
-# Telegram 推送
+# 用户输入 Telegram 推送参数
 read -p "请输入你的 Telegram Bot Token: " TELEGRAM_BOT_TOKEN
 read -p "请输入你的 Telegram Chat ID: " TELEGRAM_CHAT_ID
 
+# Base64 编码订阅链接
 ENCODED_LINK=$(echo -n "$SUB_URL" | base64)
+
+# 拼接消息文本（带说明）
 MSG="HY2 部署成功 ✅
 
 $ENCODED_LINK"
 
+# 静默发送到 Telegram（无任何返回输出）
 curl -s -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
   -d chat_id="${TELEGRAM_CHAT_ID}" \
   -d text="$MSG"
 
 green "=============================="
-green "Hy2 已部署成功 ✅"
+green "Hy2 已部署成功 "
 green "已通过 Telegram 发送信息"
 green "=============================="
