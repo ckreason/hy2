@@ -118,26 +118,20 @@ SERVER_NAME=$(echo "$HOSTNAME" | cut -d '.' -f 1)
 TAG="$SERVER_NAME@$USERNAME-hy2"
 SUB_URL="hysteria2://$PASSWORD@$HOSTNAME:$udp_port/?sni=$MASQUERADE_DOMAIN&alpn=h3&insecure=1#$TAG"
 
-# 读取 Telegram 参数
+# 输入 Telegram Bot 信息
 read -p "请输入你的 Telegram Bot Token: " TELEGRAM_BOT_TOKEN
 read -p "请输入你的 Telegram Chat ID: " TELEGRAM_CHAT_ID
 
-# MarkdownV2 转义函数
-function escape_markdown_v2() {
-  echo "$1" | sed -e 's/[]_*\[\]()~`>#+=|{}.!-]/\\&/g'
-}
+# 使用纯文本方式发送（最稳定）
+MSG="HY2 节点部署成功
 
-# 转义后的内容
-ESCAPED_SUB_URL=$(escape_markdown_v2 "$SUB_URL")
-MSG="*HY2 节点部署成功 *\n\n\`\`\`\n$ESCAPED_SUB_URL\n\`\`\`"
+$SUB_URL"
 
-# 发送到 Telegram
 curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
   -d chat_id="${TELEGRAM_CHAT_ID}" \
-  -d text="$MSG" \
-  -d parse_mode="MarkdownV2"
+  -d text="$MSG"
 
 green "=============================="
-green "Hysteria2 已部署成功 "
-green "节点链接已发送至 Telegram "
+green "Hysteria2 已部署成功"
+green "节点链接已发送至 Telegram"
 green "=============================="
