@@ -65,11 +65,12 @@ purple "使用伪装域名：$MASQUERADE_DOMAIN"
 
 # 用户选择主机名（子域名）
 choose_domain() {
-    local index=$(echo "$HOSTNAME" | grep -o -E '[0-9]+')
+    local num=$(echo "$HOSTNAME" | grep -oP '\d+')
     local base="serv00.com"
-    local doms=("S${index}.${base}" "web${index}.${base}" "cache${index}.${base}")
+    local doms=("s${num}.${base}" "web${num}.${base}" "cache${num}.${base}")
 
-    echo "请选择一个不被墙的主机名(子域名)用于部署："
+    echo ""
+    yellow "请选择一个不被墙的主机名（子域名）用于部署（回车默认使用 ${doms[0]}）："
     select chosen in "${doms[@]}"; do
         if [[ -z "$REPLY" ]]; then
             chosen=${doms[0]}
@@ -144,8 +145,9 @@ read -p "请输入你的 Telegram Bot Token: " TELEGRAM_BOT_TOKEN
 read -p "请输入你的 Telegram Chat ID: " TELEGRAM_CHAT_ID
 
 ENCODED_LINK=$(echo -n "$SUB_URL" | base64)
+MSG="HY2 部署成功 ✅
 
-MSG="HY2 部署成功 ✅\n\n$ENCODED_LINK"
+$ENCODED_LINK"
 
 # 发送到 Telegram
 curl -s -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
@@ -154,6 +156,6 @@ curl -s -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/
 
 # 完成提示
 green "=============================="
-green "Hy2 已部署成功 "
-green "已通过 Telegram 发送信息"
+green "Hy2 已部署成功 ✅"
+green "信息已通过 Telegram 发送"
 green "=============================="
