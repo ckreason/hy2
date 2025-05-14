@@ -71,19 +71,18 @@ choose_domain() {
 
     echo ""
     yellow "请选择一个不被墙的主机名（子域名）用于部署（回车默认使用 ${doms[0]}）："
-    select chosen in "${doms[@]}"; do
-        if [[ -z "$REPLY" ]]; then
-            chosen=${doms[0]}
-            echo "$chosen"
-            break
-        elif [[ -n "$chosen" ]]; then
-            echo "$chosen"
-            break
-        else
-            echo "无效选择，请重新选择"
-        fi
+    for i in "${!doms[@]}"; do
+        echo "$((i+1)). ${doms[$i]}"
     done
+
+    read -p "#? " reply
+    if [[ -z "$reply" || ! "$reply" =~ ^[1-3]$ ]]; then
+        echo "${doms[0]}"
+    else
+        echo "${doms[$((reply-1))]}"
+    fi
 }
+
 
 SELECTED_DOMAIN=$(choose_domain)
 purple "最终部署主机名(子域名)：$SELECTED_DOMAIN"
