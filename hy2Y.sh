@@ -64,7 +64,7 @@ read -p "请输入伪装域名（回车默认 bing.com）: " input_domain
 MASQUERADE_DOMAIN=${input_domain:-bing.com}
 purple "使用伪装域名：$MASQUERADE_DOMAIN"
 
-# 下载 hysteria2 程序
+# 下载 hy2 程序
 curl -Lo hysteria2 https://download.hysteria.network/app/latest/hysteria-freebsd-amd64
 chmod +x hysteria2
 
@@ -129,7 +129,7 @@ read -p "请输入你的 Telegram Chat ID: " TELEGRAM_CHAT_ID
 ENCODED_LINK=$(echo -n "$SUB_URL" | base64)
 
 # 拼接消息文本（带说明）
-MSG="HY2 节点部署成功 ✅
+MSG="HY2 部署成功 ✅
 
 $ENCODED_LINK"
 
@@ -139,6 +139,6 @@ curl -s -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/
   -d text="$MSG"
 
 green "=============================="
-green "Hysteria2 已部署成功 "
-green "已通过 Telegram 发送节点信息"
+green "Hy2 已部署成功 "
+green "已通过 Telegram 发送信息"
 green "=============================="
