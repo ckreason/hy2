@@ -55,7 +55,7 @@ done
 purple "已添加 UDP 端口：$udp_port"
 
 
-# 多域名检测逻辑，优选可用子域名
+# 多域名检测逻辑，优选可用子域名（使用大佬的 API 判断是否被墙）
 SERVER_NAME=$(hostname | cut -d '.' -f 1)
 SERVER_ID=$(echo "$SERVER_NAME" | sed 's/[^0-9]//g')
 BASE_DOMAIN="serv00.com"
@@ -72,16 +72,13 @@ for d in "${DOMAINS[@]}"; do echo " - $d"; done
 echo -e "\n检测中，请稍等..."
 > ip.txt
 for domain in "${DOMAINS[@]}"; do
-  ip=$(dig +short "$domain" @8.8.8.8 | head -n 1)
-  if [[ -n "$ip" ]]; then
-    curl -m 3 -s "https://$domain" > /dev/null
-    if [[ $? -eq 0 ]]; then
-      echo "$ip:$domain:可用" >> ip.txt
-    else
-      echo "$ip:$domain:被墙" >> ip.txt
-    fi
+  response=$(curl -sL --connect-timeout 5 --max-time 7 "https://ss.fkj.pp.ua/api/getip?host=$domain")
+  if [[ "$response" =~ "Accessible" ]]; then
+    ip=$(echo "$response" | awk -F '|' '{print $1}')
+    echo "$ip:$domain:可用" >> ip.txt
   else
-    echo "null:$domain:无解析" >> ip.txt
+    ip=$(dig +short "$domain" @8.8.8.8 | head -n 1)
+    echo "$ip:$domain:被墙" >> ip.txt
   fi
 done
 
