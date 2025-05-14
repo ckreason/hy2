@@ -141,4 +141,24 @@ curl -s -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/
 green "=============================="
 green "Hysteria2 已部署成功 "
 green "已通过 Telegram 发送节点信息"
+green "若需一键清理还原，请按快捷键 S "
 green "=============================="
+
+read -p "请输入快捷键（S 跳转清理，其他键跳过）: " shortcut
+if [[ "$shortcut" == "S" || "$shortcut" == "s" ]]; then
+  read -p "⚠️ 是否确认清除所有进程并删除网站目录？输入 Y 确认: " confirm
+  if [[ "$confirm" == "Y" || "$confirm" == "y" ]]; then
+    red "正在终止当前用户的所有进程..."
+    pkill -u $(whoami)
+
+    red "正在删除网站文件..."
+    rm -rf /home/$USER/domains/$USER.${CURRENT_DOMAIN}/public_html/*
+
+    green "✅ 一键清理完成，网站内容和进程已还原"
+    exit 0
+  else
+    yellow "取消清理操作，保留原配置。"
+  fi
+else
+  green "跳过一键清理，保留当前部署状态。"
+fi
