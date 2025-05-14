@@ -8,8 +8,13 @@ function purple() { echo -e "\033[1;35m$1\033[0m"; }
 
 # 环境变量
 export LC_ALL=C
-HOSTNAME=$(hostname)
+HOSTNAME=$(hostname -f)
 USERNAME=$(whoami | tr '[:upper:]' '[:lower:]')
+
+# 提取服务器编号（如 s6 → 6）
+prefix=$(echo "$HOSTNAME" | cut -d '.' -f1)        # s6
+num=$(echo "$prefix" | grep -oP '\d+')             # 提取数字 6
+num=${num:-0}                                      # 若为空默认为0
 
 # 自动识别站点域名
 if [[ "$HOSTNAME" =~ ct8 ]]; then
@@ -20,9 +25,7 @@ else
   CURRENT_DOMAIN="serv00.net"
 fi
 
-# 连接域名候选生成（提取 sN 中的 N）
-num=$(echo "$HOSTNAME" | grep -oP '^s\K\d+')
-num=${num:-0}
+# 构造连接域名候选项
 BASE_DOMAIN=$(echo "$HOSTNAME" | cut -d '.' -f 2-)
 default_candidates=("s${num}.${BASE_DOMAIN}" "web${num}.${BASE_DOMAIN}" "cache${num}.${BASE_DOMAIN}")
 
@@ -35,6 +38,7 @@ read -p "请输入可用的连接域名（默认使用 ${default_candidates[0]}�
 CONN_DOMAIN=${input_conn_domain:-${default_candidates[0]}}
 purple "使用连接域名：$CONN_DOMAIN"
 
+# 工作目录
 WORKDIR="$HOME/domains/${USERNAME}.${CURRENT_DOMAIN}/web"
 mkdir -p "$WORKDIR"
 cd "$WORKDIR" || exit 1
@@ -151,5 +155,5 @@ curl -s -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/
 
 green "=============================="
 green "Hy2 已部署成功 ✅"
-green "已通过 Telegram 发送节点信息"
+green "已通过 Telegram 发送信息"
 green "=============================="
