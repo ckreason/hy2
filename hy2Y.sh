@@ -11,7 +11,7 @@ export LC_ALL=C
 HOSTNAME=$(hostname)
 USERNAME=$(whoami | tr '[:upper:]' '[:lower:]')
 
-# 自动识别域名
+# 自动识别站点域名
 if [[ "$HOSTNAME" =~ ct8 ]]; then
   CURRENT_DOMAIN="ct8.pl"
 elif [[ "$HOSTNAME" =~ hostuno ]]; then
@@ -46,7 +46,7 @@ devil port list | awk 'NR>1 && $2 == "udp" { print $1 }' | while read -r port; d
   devil port del udp "$port"
 done
 
-# 添加 UDP 端口（防封策略：使用中段端口）
+# 添加中段随机 UDP 端口
 while true; do
   udp_port=$(shuf -i 30000-40000 -n 1)
   result=$(devil port add udp "$udp_port" 2>&1)
@@ -54,7 +54,7 @@ while true; do
 done
 purple "已添加 UDP 端口：$udp_port"
 
-# UUID生成 + 可选手动输入
+# UUID 输入或自动生成
 read -p "请输入 UUID（回车自动生成）: " input_uuid
 UUID=${input_uuid:-$(uuidgen)}
 PASSWORD="$UUID"
@@ -68,13 +68,13 @@ purple "使用伪装域名：$MASQUERADE_DOMAIN"
 curl -Lo hysteria2 https://download.hysteria.network/app/latest/hysteria-freebsd-amd64
 chmod +x hysteria2
 
-# 生成 TLS 证书
+# 生成 TLS 自签证书
 openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) \
   -keyout "$WORKDIR/web.key" \
   -out "$WORKDIR/web.crt" \
   -subj "/CN=${MASQUERADE_DOMAIN}" -days 36500
 
-# 创建 hysteria2 配置文件
+# 写入配置文件
 cat << EOF > "$WORKDIR/web.yaml"
 listen: :$udp_port
 
@@ -97,7 +97,7 @@ transport:
     hopInterval: 30s
 EOF
 
-# 保活脚本 + 随机延迟
+# 写入保活脚本
 cat << EOF > "$WORKDIR/updateweb.sh"
 #!/bin/bash
 sleep \$((RANDOM % 30 + 10))
@@ -111,28 +111,34 @@ chmod +x "$WORKDIR/updateweb.sh"
 # 启动服务
 "$WORKDIR/updateweb.sh"
 
-# 添加 crontab 保活任务（带唯一标识）
+# 添加 crontab 保活任务（唯一标识）
 cron_job="*/39 * * * * $WORKDIR/updateweb.sh # hysteria2_keepalive"
 crontab -l 2>/dev/null | grep -q 'hysteria2_keepalive' || \
   (crontab -l 2>/dev/null; echo "$cron_job") | crontab -
 
-# 生成订阅链接
+# 构建订阅链接
 SERVER_NAME=$(echo "$HOSTNAME" | cut -d '.' -f 1)
 TAG="$SERVER_NAME@$USERNAME-hy2"
 SUB_URL="hysteria2://$PASSWORD@$HOSTNAME:$udp_port/?sni=$MASQUERADE_DOMAIN&alpn=h3&insecure=1#$TAG"
 
-# 输入 Telegram Bot 信息
+# 用户输入 Telegram 推送参数
 read -p "请输入你的 Telegram Bot Token: " TELEGRAM_BOT_TOKEN
 read -p "请输入你的 Telegram Chat ID: " TELEGRAM_CHAT_ID
 
-# Base64 编码发送（不带说明语）
+# Base64 编码订阅链接
 ENCODED_LINK=$(echo -n "$SUB_URL" | base64)
 
-curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+# 拼接消息文本（带说明）
+MSG="HY2 节点部署成功 ✅
+
+$ENCODED_LINK"
+
+# 静默发送到 Telegram（无任何返回输出）
+curl -s -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
   -d chat_id="${TELEGRAM_CHAT_ID}" \
-  -d text="$ENCODED_LINK"
+  -d text="$MSG"
 
 green "=============================="
-green "Hysteria2 已部署成功"
-green "节点链接已发送至 Telegram"
+green "Hysteria2 已部署成功 "
+green "已通过 Telegram 发送节点信息"
 green "=============================="
