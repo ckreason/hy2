@@ -168,8 +168,27 @@ SERVER_NAME=$(echo "$SELECTED_DOMAIN" | cut -d '.' -f 1)
 TAG="$SERVER_NAME@$USERNAME-hy2"
 SUB_URL="hysteria2://$PASSWORD@$SELECTED_DOMAIN:$udp_port/?sni=$MASQUERADE_DOMAIN&alpn=h3&insecure=1#$TAG"
 
+# 用户输入 Telegram 推送参数
+read -p "请输入你的 Telegram Bot Token: " TELEGRAM_BOT_TOKEN
+read -p "请输入你的 Telegram Chat ID: " TELEGRAM_CHAT_ID
+
+# Base64 编码
+ENCODED_LINK=$(echo -n "$SUB_URL" | base64)
+
+# 拼接消息文本
+MSG="HY2 部署成功 ✅
+
+$ENCODED_LINK"
+
+# 静默推送
+curl -s -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+  -d chat_id="${TELEGRAM_CHAT_ID}" \
+  -d text="$MSG"
+
+# 完成提示
 green "=============================="
 green "HY2 部署成功"
+green "已通过 Telegram 发送信息"
 green "链接如下："
 yellow "$SUB_URL"
 green "=============================="
