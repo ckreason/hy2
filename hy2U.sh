@@ -86,7 +86,7 @@ while IFS= read -r line; do
   ((i++))
 done < ip.txt
 
-read -p "请输入你要使用的域名序号（默认自动选第一个可用）: " user_choice
+read -p "请输入你要使用的域名序号（默认自动选第一个）: " user_choice
 if [[ -z "$user_choice" ]]; then
   SELECTED_LINE=$(grep "可用" ip.txt | head -n 1)
 else
