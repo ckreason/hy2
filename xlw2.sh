@@ -36,7 +36,7 @@ command -v curl &>/dev/null && COMMAND="curl -so" || command -v wget &>/dev/null
     exit 1
 }
 
-# 检查并分配可用的 UDP 端口（Hy2 使用 UDP）
+# 检查并分配可用的 UDP 端口（hy2 使用 UDP）
 check_port () {
   clear
   echo -e "\e[1;35m正在安装中,请稍等...\e[0m"
@@ -71,7 +71,7 @@ check_port () {
       udp_port1=$(echo "$udp_ports" | sed -n '1p')
   fi
   export PORT=$udp_port1
-  echo -e "\e[1;35mhysteria2使用udp端口: $udp_port1\e[0m"
+  echo -e "\e[1;35mhy2使用udp端口: $udp_port1\e[0m"
 }
 check_port
 
@@ -95,7 +95,7 @@ generate_random_name() {
     echo "$name"
 }
 
-# 下载 Hysteria2 文件并保存为随机文件名
+# 下载 hy2 文件并保存为随机文件名
 for entry in "${FILE_INFO[@]}"; do
     URL=$(echo "$entry" | cut -d ' ' -f 1)
     RANDOM_NAME=$(generate_random_name)
@@ -131,7 +131,7 @@ get_ip() {
 HOST_IP=$(get_ip)
 echo -e "\e[1;35m当前选择IP为: $HOST_IP 如安装完后节点不通可尝试重新安装\e[0m"
 
-# 生成 Hysteria2 配置文件 config.yaml
+# 生成 hy2 配置文件 config.yaml
 cat << EOF > config.yaml
 listen: $HOST_IP:$PORT
 tls:
@@ -215,13 +215,13 @@ run
 
 # 构造名称和订阅信息
 get_name() { [[ "$HOSTNAME" == "s1.ct8.pl" ]] && echo "CT8" || echo "$HOSTNAME" | cut -d '.' -f 1; }
-NAME="$(get_name)-hysteria2-${USERNAME}"
+NAME="$(get_name)-hy2-${USERNAME}"
 ISP=$(curl -s --max-time 2 https://speed.cloudflare.com/meta | awk -F\" '{print $26}' | sed -e 's/ /_/g' || echo "0")
 
-# 输出 Hysteria2 URI 链接
-echo -e "\n\e[1;32mHy2安装成功\033[0m\n"
+# 输出 hy2 URI 链接
+echo -e "\n\e[1;32mhy2安装成功\033[0m\n"
 cat > ${FILE_PATH}/${SUB_TOKEN}_hy2.log <<EOF
-hysteria2://$UUID@$HOST_IP:$PORT/?sni=www.bing.com&alpn=h3&insecure=1#$ISP-$NAME
+hy2://$UUID@$HOST_IP:$PORT/?sni=www.bing.com&alpn=h3&insecure=1#$ISP-$NAME
 EOF
 cat ${FILE_PATH}/${SUB_TOKEN}_hy2.log
 
@@ -229,7 +229,7 @@ cat ${FILE_PATH}/${SUB_TOKEN}_hy2.log
 echo -e "\n\e[1;35mClash:\033[0m"
 cat << EOF
 - name: $ISP-$NAME
-  type: hysteria2
+  type: hy2
   server: $HOST_IP
   port: $PORT
   password: $UUID
