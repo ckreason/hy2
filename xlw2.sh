@@ -219,7 +219,7 @@ NAME="$(get_name)-hysteria2-${USERNAME}"
 ISP=$(curl -s --max-time 2 https://speed.cloudflare.com/meta | awk -F\" '{print $26}' | sed -e 's/ /_/g' || echo "0")
 
 # 输出 Hysteria2 URI 链接
-echo -e "\n\e[1;32mHysteria2安装成功\033[0m\n"
+echo -e "\n\e[1;32mHy2安装成功\033[0m\n"
 cat > ${FILE_PATH}/${SUB_TOKEN}_hy2.log <<EOF
 hysteria2://$UUID@$HOST_IP:$PORT/?sni=www.bing.com&alpn=h3&insecure=1#$ISP-$NAME
 EOF
