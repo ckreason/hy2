@@ -36,7 +36,7 @@ command -v curl &>/dev/null && COMMAND="curl -so" || command -v wget &>/dev/null
     exit 1
 }
 
-# 检查并分配可用的 UDP 端口（Hysteria2 使用 UDP）
+# 检查并分配可用的 UDP 端口（Hy2 使用 UDP）
 check_port () {
   clear
   echo -e "\e[1;35m正在安装中,请稍等...\e[0m"
